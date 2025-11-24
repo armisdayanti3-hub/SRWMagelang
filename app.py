@@ -14,7 +14,7 @@ st.set_page_config(
 )
 
 # ===============================
-# 📂 LOAD DATA
+# 📂 LOAD DATASET
 # ===============================
 @st.cache_data
 def load_data():
@@ -23,14 +23,15 @@ def load_data():
         place_df = pd.read_csv("Dataset_tourisMagelang.csv")
         user_df = pd.read_csv("Dataset_usermgl.csv")
     except FileNotFoundError:
-        st.error("❌ File dataset tidak ditemukan.")
+        st.error("❌ File dataset tidak ditemukan. Pastikan file CSV telah diunggah.")
         return None, None, None
     return rating_df, place_df, user_df
+
 
 # ===============================
 # 📦 LOAD MODEL SVD
 # ===============================
-@st.cache_data
+@st.cache_resource
 def load_model():
     try:
         model = joblib.load("mf_model.pkl")
@@ -39,11 +40,13 @@ def load_model():
         return None
     return model
 
+
 rating_df, place_df, user_df = load_data()
 model = load_model()
 
 if rating_df is None or model is None:
     st.stop()
+
 
 # ===============================
 # 🧠 FUNGSI PREDIKSI (SVD)
@@ -51,6 +54,7 @@ if rating_df is None or model is None:
 def predict_rating(user_id, place_id):
     pred = model.predict(user_id, place_id)
     return pred.est
+
 
 # ===============================
 # ⭐ FUNGSI REKOMENDASI
@@ -69,8 +73,9 @@ def recommend_places(user_id, top_n=5):
     predictions.sort(key=lambda x: x[1], reverse=True)
     return predictions[:top_n]
 
+
 # ===============================
-# 🔍 SEARCH WISATA
+# 🔍 FUNGSI SEARCH WISATA
 # ===============================
 def search_place(keyword):
     keyword_lower = keyword.lower()
@@ -79,6 +84,7 @@ def search_place(keyword):
     desc_match = place_df[place_df['Description'].str.contains(keyword, case=False, na=False)].copy()
 
     results = pd.concat([name_match, desc_match]).drop_duplicates().reset_index(drop=True)
+    
     if results.empty:
         return results
 
@@ -88,16 +94,17 @@ def search_place(keyword):
         return name_score * 2 + desc_score
 
     results["Relevance"] = results.apply(relevance_score, axis=1)
-    results = results.sort_values("Relevance", ascending=False)
-    return results
+    return results.sort_values("Relevance", ascending=False)
+
 
 # ===============================
 # 🖥️ UI STREAMLIT
 # ===============================
 st.title("🏞️ Sistem Rekomendasi Wisata Magelang")
-st.caption("Menggunakan Matrix Factorization (SVD)")
+st.caption("Menggunakan *Collaborative Filtering* dengan algoritma *Matrix Factorization (SVD)*")
 
 st.markdown("---")
+
 
 # ===============================
 # 🔍 SEARCH BAR
@@ -114,19 +121,19 @@ if search_query:
             st.subheader(f"📍 {row['Place_Name']}")
 
             desc = row['Description']
-            highlighted_desc = re.sub(f"(?i)({search_query})", r"**\1**", desc)
+            highlighted_desc = re.sub(f"(?i)({search_query})", r"**\\1**", desc)
             st.markdown(f"📝 {highlighted_desc}")
 
             avg = rating_df[rating_df['Place_Name'] == row['Place_Name']]['Place_Rating'].mean()
             st.write(f"⭐ Rata-rata Rating: {avg:.2f}/5.0")
 
             st.markdown("---")
-
 else:
     st.info("Cari tempat wisata untuk melihat detailnya.")
 
+
 # ===============================
-# 🎯 REKOMENDASI
+# 🎯 REKOMENDASI BERDASARKAN USER
 # ===============================
 st.subheader("🎯 Rekomendasi Berdasarkan User ID")
 
@@ -142,4 +149,4 @@ if st.button("Tampilkan Rekomendasi"):
     for place, score in rekom:
         st.markdown(f"- **{place}** — Prediksi Rating: `{score:.2f}` ⭐")
 
-st.sidebar.caption("Sistem Rekomendasi Wisata — SVD Version")
+st.sidebar.caption("✨ Sistem Rekomendasi Wisata Magelang — SVD Version")
